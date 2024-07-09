@@ -1,2 +1,0 @@
-uint8 left_motor
-uint8 right_motor
