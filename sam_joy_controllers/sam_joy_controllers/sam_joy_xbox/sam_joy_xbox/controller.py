@@ -56,16 +56,16 @@ class xbox_joy(Node):
         self.teleop_enabled = False
         self.assisted_driving_enabled = False
 
-        self.declare_parameter("~teleop_enable", "/enable")
-        teleop_enable_top=self.get_parameter("~teleop_enable").value
-        self.declare_parameter("~assist_enable", "/assist")
-        assist_enable_top = self.get_parameter("~assist_enable").value
+        self.declare_parameter("teleop_enable", "/enable")
+        teleop_enable_top=self.get_parameter("teleop_enable").value
+        self.declare_parameter("assist_enable", "/assist")
+        assist_enable_top = self.get_parameter("assist_enable").value
 
-        self.declare_parameter("~joy_buttons", "/joy_buttons")
-        joy_buttons_top=self.get_parameter("~joy_buttons").value
+        self.declare_parameter("joy_buttons", "/joy_buttons")
+        joy_buttons_top=self.get_parameter("joy_buttons").value
 
-        self.declare_parameter("~joy_top", "/joy")
-        joy_top = self.get_parameter("~joy_top").value
+        self.declare_parameter("joy_top", "/joy")
+        joy_top = self.get_parameter("joy_top").value
         self.teleop_enabled_pub = self.create_publisher(Bool,teleop_enable_top,  qos_profile=1)
         self.teleop_enabled_pub = self.create_publisher(Bool, teleop_enable_top, QoSProfile(depth=1))
 
@@ -90,7 +90,6 @@ class xbox_joy(Node):
         if self.device_file is None:
             # rospy.logerr_once("[XBOX CONTROLLER] Sorry, no FF capable device found")
             self.get_logger().error("[XBOX CONTROLLER] Sorry, no FF capable device found")
-
         self.load_effects()
 
     def load_effects(self):
@@ -98,17 +97,28 @@ class xbox_joy(Node):
         Load the effects for the controller
         Taken from https://github.com/atar-axis/xpadneo/blob/master/misc/examples/python_asyncio_evdev/gamepad.py
         """
-        # effect 1, light rumble
-        rumble = ff.Rumble(strong_magnitude=0xc000, weak_magnitude=0x500)
-        duration_ms = 300
-        effect = ff.Effect(ecodes.FF_RUMBLE, -1, 0, ff.Trigger(0, 0), ff.Replay(duration_ms, 0), ff.EffectType(ff_rumble_effect=rumble))
-        effect = ff.Effect(ecodes.FF_RUMBLE, -1, 0, ff.Trigger(0, 0), ff.Replay(duration_ms, 0), ff.EffectType(ff_rumble_effect=rumble))
-        self.effect1_id = self.device_file.upload_effect(effect)
-        # effect 2, strong rumble
-        rumble = ff.Rumble(strong_magnitude=0xc000, weak_magnitude=0x0000)
-        duration_ms = 200
-        effect = ff.Effect(ecodes.FF_RUMBLE, -1, 0, ff.Trigger(0, 0), ff.Replay(duration_ms, 0), ff.EffectType(ff_rumble_effect=rumble))
-        self.effect2_id = self.device_file.upload_effect(effect)
+        try:
+            # Effect 1, light rumble
+            rumble = ff.Rumble(strong_magnitude=0xc000, weak_magnitude=0x500)
+            duration_ms = 300
+            effect = ff.Effect(
+                ecodes.FF_RUMBLE, -1, 0, ff.Trigger(0, 0),
+                ff.Replay(duration_ms, 0), ff.EffectType(ff_rumble_effect=rumble)
+            )
+            self.effect1_id = self.device_file.upload_effect(effect)
+            self.get_logger().info(f"Effect 1 uploaded with id {self.effect1_id}")
+
+            # Effect 2, strong rumble
+            rumble = ff.Rumble(strong_magnitude=0xc000, weak_magnitude=0x0000)
+            duration_ms = 200
+            effect = ff.Effect(
+                ecodes.FF_RUMBLE, -1, 0, ff.Trigger(0, 0),
+                ff.Replay(duration_ms, 0), ff.EffectType(ff_rumble_effect=rumble)
+            )
+            self.effect2_id = self.device_file.upload_effect(effect)
+            self.get_logger().info(f"Effect 2 uploaded with id {self.effect2_id}")
+        except Exception as e:
+            self.get_logger().error(f"Error loading effects: {e}")
 
     # ================================================================================
     # Callbacks
@@ -118,7 +128,6 @@ class xbox_joy(Node):
         """
         Callback function for the joystick subscriber
         """
-
         teleop_btn_pressed = msg.buttons[0] == 1
         assited_driving_pressed = msg.buttons[3] == 1
 
@@ -126,7 +135,9 @@ class xbox_joy(Node):
             self.teleop_enabled = not self.teleop_enabled
             self.enable_teleop_pressed = True
             self.get_logger().info(f"[XBOX CONTROLLER] Teleop enabled: {format(self.teleop_enabled)}")
-            self.teleop_enabled_pub.publish(Bool(self.teleop_enabled))
+            teleop_enabled_msg = Bool()
+            teleop_enabled_msg.data = self.teleop_enabled
+            self.teleop_enabled_pub.publish(teleop_enabled_msg)
             if self.teleop_enabled:
                 self.rumble(1)
             else:
@@ -137,7 +148,9 @@ class xbox_joy(Node):
             self.assisted_driving_enabled = not self.assisted_driving_enabled
             self.enable_assisted_driving_pressed = True
             self.get_logger().info(f"[XBOX CONTROLLER] Assisted driving enabled: {format(self.assisted_driving_enabled)}")
-            self.assisted_driving_enabled_pub.publish(Bool(self.assisted_driving_enabled))
+            assisted_driving_enabled_msg = Bool()
+            assisted_driving_enabled_msg.data = self.assisted_driving_enabled
+            self.assisted_driving_enabled_pub.publish(self.assisted_driving_enabled)
             if self.assisted_driving_enabled:
                 self.rumble(1)
             else:
@@ -150,8 +163,8 @@ class xbox_joy(Node):
             self.enable_assisted_driving_pressed = False
             
         joy_buttons_msg = JoyButtons()
-        joy_buttons_msg.Header.stamp = self.get_clock().now().to_msg()
-        joy_buttons_msg.Header.frame_id = "xbox_controller"
+        joy_buttons_msg.header.stamp = self.get_clock().now().to_msg()
+        joy_buttons_msg.header.frame_id = "xbox_controller"
         joy_buttons_msg.left_x = msg.axes[0]
         joy_buttons_msg.left_y = msg.axes[1]
         joy_buttons_msg.right_x = msg.axes[3]
@@ -169,7 +182,6 @@ class xbox_joy(Node):
         joy_buttons_msg.shoulder_l2 = msg.axes[2]
         joy_buttons_msg.shoulder_r1 = msg.buttons[5] == 1
         joy_buttons_msg.shoulder_r2 = msg.axes[5]
-
         self.joy_btn_pub.publish(joy_buttons_msg)
 
 

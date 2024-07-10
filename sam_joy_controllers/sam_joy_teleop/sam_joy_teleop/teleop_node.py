@@ -83,7 +83,6 @@ class teleop(Node):
 
 
 
-
     def send_cmds(self):
         if self.rpm_msg.thruster_1_rpm != 0 or not self.published_zero_rpm_once:
             
@@ -103,7 +102,6 @@ class teleop(Node):
             if self.assisted_driving_enabled:
                 elev_cmd = self.elev_effort
                 self.vec_msg.thruster_vertical_radians = elev_cmd
-
             self.vector_pub.publish(self.vec_msg)
 
             zero = self.vec_msg.thruster_horizontal_radians == 0 and\
@@ -139,7 +137,6 @@ class teleop(Node):
             if self.start_ad:
                 self.depth_sp = msg.data
                 self.start_ad = False
-        
             self.elev_sp_pub.publish(Float64(self.depth_sp))
 
     def elev_pid_cb(self, msg:Float64):
@@ -154,29 +151,29 @@ class teleop(Node):
 
         # pub = rospy.Publisher('chatter', String, queue_size=10)
         super().__init__('ds5_teleop')
-        self.declare_parameter("~rpm_joystick_top", "/rpm_joystick")
+        self.declare_parameter("rpm_joystick_top", "/rpm_joystick")
         
-        rpm_joystick_top = self.get_parameter("~rpm_joystick_top").value
+        rpm_joystick_top = self.get_parameter("rpm_joystick_top").value
         
-        self.declare_parameter("~vector_deg_joystick_top", "/vector_deg_joystick")
-        vector_deg_joystick_top = self.get_parameter("~vector_deg_joystick_top").value
+        self.declare_parameter("vector_deg_joystick_top", "/vector_deg_joystick")
+        vector_deg_joystick_top = self.get_parameter("vector_deg_joystick_top").value
          
         
-        self.declare_parameter("~teleop_enable", "/enable")
-        teleop_enable_top = self.get_parameter("~teleop_enable").value
+        self.declare_parameter("teleop_enable", "/enable")
+        teleop_enable_top = self.get_parameter("teleop_enable").value
 
-        self.declare_parameter("~assist_enable", "/assist")
-        assist_enable_top = self.get_parameter("~assist_enable").value
+        self.declare_parameter("assist_enable", "/assist")
+        assist_enable_top = self.get_parameter("assist_enable").value
         
-        self.declare_parameter("~joy_buttons", "/joy_buttons")
-        joy_buttons_top = self.get_parameter("~joy_buttons").value
+        self.declare_parameter("joy_buttons", "/joy_buttons")
+        joy_buttons_top = self.get_parameter("joy_buttons").value
         
         
-        self.declare_parameter("~elevator_pid_ctrl", "/elevator")
-        elevator_pid_top = self.get_parameter("~elevator_pid_ctrl").value
+        self.declare_parameter("elevator_pid_ctrl", "/elevator")
+        elevator_pid_top = self.get_parameter("elevator_pid_ctrl").value
 
-        self.declare_parameter("~elev_sp_top", "/elev_sp")
-        elev_sp_top = self.get_parameter("~elev_sp_top").value
+        self.declare_parameter("elev_sp_top", "/elev_sp")
+        elev_sp_top = self.get_parameter("elev_sp_top").value
         
     
 
@@ -207,11 +204,11 @@ class teleop(Node):
         self.assit_driving_sub = self.create_subscription(Bool,assist_enable_top,  self.assisted_driving_callback,qos_profile=1)
         self.depth_sub = self.create_subscription(Float64,DR_Topics.DR_DEPTH_TOPIC,  self.depth_cb,qos_profile=1)
         self.elevator_pid_sub = self.create_subscription(Float64,elevator_pid_top,  self.elev_pid_cb,qos_profile=1)
-
-        rate = self.create_rate(12)
-        while rclpy.ok():
-            self.send_cmds()
-            rate.sleep()
+        self.timer = self.create_timer(0.1, self.send_cmds)
+        # rate = self.create_rate(12)
+        # while rclpy.ok():
+        #     self.send_cmds()
+        #     rate.sleep()
 
         # rospy.spin()
 def main(args=None):
