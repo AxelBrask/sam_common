@@ -32,6 +32,7 @@ from rclpy.node import Node
 from std_msgs.msg import Bool, Float64
 from geometry_msgs.msg import Twist
 from sam_msgs.msg import ThrusterAngles, ThrusterRPMs
+from smarc_msgs.msg import ThrusterRPM
 
 from sam_msgs.msg import JoyButtons,Topics
 from dead_reckoning_msgs.msg import Topics as DR_Topics
@@ -85,6 +86,11 @@ class teleop(Node):
 
     def send_cmds(self):
         if self.rpm_msg.thruster_1_rpm != 0 or not self.published_zero_rpm_once:
+            rpm_msg = ThrusterRPM()        
+            rpm_msg.rpm = self.rpm_msg.thruster_1_rpm
+            self.thrrust1_pub.publish(rpm_msg)
+            rpm_msg.rpm = self.rpm_msg.thruster_2_rpm
+            self.thrrust2_pub.publish(rpm_msg)    
             
             self.thruster_pub.publish(self.rpm_msg)
             zero = self.rpm_msg.thruster_1_rpm == 0
@@ -196,6 +202,8 @@ class teleop(Node):
         self.vector_deg_joystick_pub = self.create_publisher(Twist,vector_deg_joystick_top,  qos_profile=1)
         self.elev_sp_pub = self.create_publisher( Float64,elev_sp_top, qos_profile=1)
         self.thruster_pub = self.create_publisher(ThrusterRPMs,Topics.RPM_CMD_TOPIC,  qos_profile=1)
+        self.thrrust1_pub = self.create_publisher(ThrusterRPM,Topics.THRUSTER1_CMD_TOPIC,  qos_profile=1)
+        self.thrrust2_pub = self.create_publisher(ThrusterRPM,Topics.THRUSTER2_CMD_TOPIC,  qos_profile=1)
         self.vector_pub = self.create_publisher(ThrusterAngles,Topics.THRUST_VECTOR_CMD_TOPIC,  qos_profile=1)
 
         # Subscribers
